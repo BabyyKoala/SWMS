@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Smart Waste Management System</title>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- SheetJS (Excel) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+    <!-- html2pdf -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <header class="header">
+      <h1>Smart Waste Management System</h1>
+      <p class="subtitle">
+        Mendukung SDG 11 & SDG 12 – Pengelolaan sampah berkelanjutan
+      </p>
+    </header>
+
+    <!-- Landing + Login -->
+    <div id="landing" class="overlay">
+      <div class="overlay-card">
+        <h2>Selamat Datang</h2>
+        <p>Pilih peran untuk masuk:</p>
+
+        <div class="landing-buttons">
+          <button id="btnPetugas" class="btn green">Petugas</button>
+          <button id="btnAdmin" class="btn blue">Admin</button>
+        </div>
+
+        <form id="loginForm" class="login-form" style="display: none">
+          <h3 id="loginTitle">Login</h3>
+          <input id="username" type="text" placeholder="Username" />
+          <input id="password" type="password" placeholder="Password" />
+          <div style="margin-top: 10px; display: flex; gap: 6px">
+            <button id="loginBtn" class="btn green" type="button">Login</button>
+            <button id="landingCancel" type="button" class="btn red">
+              Batal
+            </button>
+          </div>
+          <div id="loginError" class="error"></div>
+        </form>
+
+        <p class="small">
+          Demo login:<br />
+          admin/admin123 &nbsp;|&nbsp; petugas/petugas123
+        </p>
+      </div>
+    </div>
+
+    <!-- APP UTAMA (PETUGAS) -->
+    <main id="mainApp" style="display: none">
+      <!-- Input -->
+      <section class="card input-card">
+        <h2>♻️ Input Sampah</h2>
+
+        <label>Nama Sampah</label>
+        <input
+          id="wasteName"
+          type="text"
+          placeholder="Contoh: kulit buah, botol plastik..."
+        />
+
+        <div class="row">
+          <div class="col">
+            <label>Berat (kg)</label>
+            <input
+              id="wasteWeight"
+              type="number"
+              value="0.5"
+              min="0.01"
+              step="0.01"
+            />
+          </div>
+          <div class="col">
+            <label>Kategori</label>
+            <select id="wasteCategory"></select>
+          </div>
+        </div>
+
+        <div id="errorMsg" class="error"></div>
+
+        <div
+          style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap"
+        >
+          <button id="addBtn" class="btn green">Tambah</button>
+          <button id="resetBtn" class="btn yellow">Reset</button>
+          <button id="clearBtn" class="btn red">Hapus Semua</button>
+          <button id="logoutBtn" class="btn small">Logout</button>
+        </div>
+      </section>
+
+      <!-- KPIs -->
+      <section class="card kpis">
+        <div class="kpi">
+          <div class="kpi-value" id="kpi-total-weight">0 kg</div>
+          <div class="kpi-label">Total Berat</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-value" id="kpi-item-count">0</div>
+          <div class="kpi-label">Jumlah Item</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-value" id="kpi-organic-percent">0%</div>
+          <div class="kpi-label">Organik</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-value" id="kpi-prediction">0%</div>
+          <div class="kpi-label">Prediksi Penuh</div>
+        </div>
+      </section>
+
+      <div class="filter-panel">
+        <div class="filter-title">🔍 Filter Data Sampah</div>
+
+        <div class="filter-group">
+          <select id="filterCategory">
+            <option value="">Semua Kategori</option>
+            <option value="organik">Organik</option>
+            <option value="plastik">Plastik</option>
+            <option value="kertas">Kertas</option>
+            <option value="logam">Logam</option>
+            <option value="kaca">kaca</option>
+            <option value="B3">B3</option>
+          </select>
+
+          <input
+            type="text"
+            id="filterKeyword"
+            placeholder="Cari nama sampah…"
+          />
+
+          <input
+            type="number"
+            id="filterMinWeight"
+            placeholder="Min berat (kg)"
+          />
+
+          <select id="filterSort">
+            <option value="latest">Terbaru</option>
+            <option value="oldest">Terlama</option>
+            <option value="heaviest">Terberat</option>
+            <option value="lightest">Teringan</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Grid: Table + Chart -->
+      <section class="grid-two">
+        <!-- Tabel -->
+        <div class="card table-card" id="dataArea">
+          <h2>🗂️ Data Sampah Masuk</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Jenis</th>
+                <th>Kategori</th>
+                <th>Berat</th>
+                <th>Waktu</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="wasteTableBody"></tbody>
+          </table>
+        </div>
+
+        <!-- Chart -->
+        <div class="card chart-card">
+          <h2>📊 Komposisi Sampah</h2>
+          <canvas id="pieChart" height="250"></canvas>
+
+          <div class="prediction-card">
+            <div>Ambang: <strong id="capacityDisplay">50 kg</strong></div>
+            <div class="progress-outer">
+              <div id="capacityBar" class="progress-inner"></div>
+            </div>
+          </div>
+
+          <h3 style="margin-top: 18px">Realtime Sensor</h3>
+          <canvas id="realtimeChart" height="120"></canvas>
+        </div>
+      </section>
+
+      <!-- Info kategori -->
+      <section class="card waste-info-section">
+        <h2>📘 Informasi Kategori Sampah</h2>
+        <div class="waste-info-grid" id="wasteInfoGrid"></div>
+      </section>
+
+      <!-- Gamifikasi -->
+      <section class="card">
+        <h2>🏅 Gamifikasi & Reward</h2>
+
+        <!-- Poin + animasi area -->
+        <div style="display: flex; align-items: center; gap: 12px">
+          <div
+            style="position: relative; display: inline-block; min-width: 120px"
+          >
+            <div style="font-size: 13px; color: #666">Total Poin</div>
+            <div style="display: flex; align-items: center; gap: 8px">
+              <div
+                id="points"
+                class="points"
+                style="font-size: 22px; font-weight: 800"
+              >
+                0
+              </div>
+              <!-- animation area (absolute positioned inside this wrapper) -->
+              <div
+                id="pointAnimationArea"
+                style="
+                  position: absolute;
+                  left: 70px;
+                  top: 0;
+                  pointer-events: none;
+                "
+              ></div>
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size: 13px; color: #666">Level</div>
+            <div id="badge" class="badge" style="margin-top: 6px">
+              Bronze ♨️
+            </div>
+          </div>
+        </div>
+
+        <p style="margin-top: 10px; color: #444; font-size: 13px">
+          <strong>Aturan Poin:</strong>
+          <span style="display: inline-block; margin-left: 8px"
+            >+10 = Input valid</span
+          >
+          <span style="display: inline-block; margin-left: 12px"
+            >+20 = Kategori konsisten</span
+          >
+        </p>
+      </section>
+
+      <button id="openAdminView" class="btn blue" style="margin-top: 20px">
+        Admin Panel
+      </button>
+    </main>
+
+    <!-- ADMIN PANEL -->
+    <main id="adminApp" style="display: none">
+      <section class="card">
+        <h2>🛠️ Admin Panel</h2>
+
+        <div style="display: flex; gap: 12px; flex-wrap: wrap">
+          <div>
+            <label>Kapasitas Maks (kg)</label>
+            <input id="adminCapacity" type="number" class="admin-input" />
+            <button id="saveCapacity" class="btn small">Simpan</button>
+          </div>
+
+          <div>
+            <button id="toggleSensorSimBtn" class="btn small">
+              Simulasi Sensor
+            </button>
+            <button id="importSampleBtn" class="btn small">
+              Import Sample
+            </button>
+            <button id="clearAllBtn" class="btn small red">Hapus Semua</button>
+          </div>
+
+          <div>
+            <button id="exportExcelBtn" class="btn small">Export Excel</button>
+            <button id="exportPdfBtn" class="btn small">Export PDF</button>
+            <button id="exportCsvBtn" class="btn small">Export CSV</button>
+          </div>
+
+          <button id="backToApp" class="btn small">Kembali</button>
+        </div>
+
+        <div style="margin-top: 20px">
+          <h3>Log Aktivitas</h3>
+          <div
+            id="adminLog"
+            style="
+              max-height: 220px;
+              overflow: auto;
+              border: 1px dashed #ddd;
+              padding: 8px;
+            "
+          ></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- APP ENTRYPOINT (MODULE) -->
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>
